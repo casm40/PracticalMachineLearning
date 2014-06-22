@@ -1,0 +1,164 @@
+Practical Machine Learning Assignment
+=====================================
+
+Summary
+-------
+
+* **Background:** Motion sensors are increasingly available for collecting data on human subjects. Motion sensors had collected data placed on six healthy young volunteers while they were performing dumb bell arm curls in five different ways.
+* **Methods:** The data was downloaded and read into RStudio. There were 2 datasets, train (19622 observations) and test (20 observations). Missing data was removed from the training set.  The caret package was used for the analysis. The original dataset was split into 60% training set, 20% test set, 20% validation set. A random forest modelling technique was used to develop the model on the training data. This was tested against the test data, then validated against the validation data using confusion matrices. Finally, predictions were made against the 20 test observations. These were converted to text files and uploaded for autograding. 
+* **Results:** The final model had an accuracy of 0.992 against the training data, 0.993 against the test data, and 0.994 against the validation data. The predictions made against the 20 test observations were all correct according to the autograder.
+* **Conclusion:** Motion sensor data during biceps curl exercises produced random forest model that very accurately categorised the method of biceps curl performed.
+
+Introduction
+------------
+In this study motion sensors were attached to six healthy young volunteers to detect their movements during exercise. The sensors were at the right wrist, right elbow, center of waist and on the dumbell itself. 
+
+The dataset was collected during one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions:
+
+1. exactly according to the specification (Class A)
+2. throwing the elbows to the front (Class B)
+3. lifting the dumbbell only halfway (Class C)
+4. lowering the dumbbell only halfway (Class D)
+5. throwing the hips to the front (Class E).
+
+The aim of this study was to develop a machine learning algorithm that could accurately detect each of these five conditions.
+
+Methods
+-------
+### Download and Clean Data
+#### Download Data
+The data was downloaded from the website (http://groupware.les.inf.puc-rio.br/har) using the code below:
+```{r}
+setwd("~/Google Drive/Coursera/Data Analysis/Practical machine learning")
+url1 = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url2 = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url1,"pml-training.csv",method="curl")
+download.file(url2,"pml-testing.csv",method="curl")
+```
+#### Load Data
+Next the data was read into RStudio.
+```{r}
+train <- read.table("pml-training.csv",header=TRUE,as.is = "numeric", sep=",")
+test <- read.table("pml-testing.csv",header=TRUE,as.is = "numeric", sep=",")
+```
+#### Inspect Data
+Next, the data was examined.
+```{r eval=FALSE}
+summary(train)
+```
+#### Clean Data
+
+##### Remove Missing Data
+Many of the columns contained little or no data, so they were removed using the code below. This left 1 predictor variable (classe), and 52 predictor variables.
+
+```{r}
+train[train ==""] <- NA
+present <- train[colSums(!is.na(train)) > 1000] # (Reference 1).
+```
+
+##### Remove Unnecessary Data
+Columns with order, name and time data were removed. The order, in particular, was sequential and could confuse our algorithm. 
+
+```{r}
+training <- present[,-c(1,2,3,4,5,6,7)]
+```
+
+I used the caret package for the processing and analysis of the data (References 2, 3). The training dataset contained 19622 observations, so 60% was split into a training set (11776 observations). The remaining 40% was split equally between a testSet and a validationSet (3923 observations each). I used the createDataPartition function from the caret package for this purpose.
+
+```{r}
+library(caret)
+inTrain <- createDataPartition(y=training$classe,p=0.6,list=FALSE)
+trainSet <- training[inTrain,]
+testing <- training[-inTrain,]
+inTest <- createDataPartition(y=testing$classe, p=0.5,list=FALSE)
+testSet <- testing[inTest,]
+validationSet <- testing[-inTest,]
+```
+
+I confirmed that each dataset contained a similar proportion of each of the five outcomes.
+```{r}
+summary(train$classe)/nrow(train) 
+summary(training$classe)/nrow(training)
+summary(testing$classe)/nrow(testing)
+```
+
+### Explore Data
+Next the data was examined using boxplots for any obvious patterns. Although some of the variables had slightly higher or lower means for the different outcomes, these differences were not very marked. Visually about 18 of the variables looked as if the might help in separating out 1-2 of the variables.
+
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+for(i in 1:4){
+        plot(training$classe,training[,i],main=names(training)[i])
+}
+```
+
+### Model Development
+There are 150 approaches for developing models in the (Reference 4). Since this was a classification task, I tried the random forest method first, partly since Jeff had recommended it so highly in the lectures. 
+
+I chose the train control parameters after reading reference 2. The most important selection was the method of error detection using out-of-bag error. Many permutations of these parameters were tried, with this being the most effective.
+```{r}
+set.seed(47) # ensure accurate comparison through multiple trials
+tc <- trainControl("oob", number=10, repeats=10, classProbs=TRUE, savePred=T)
+rfFit <- train(classe~.,method="rf",data=trainSet,prox=TRUE,trControl = tc)
+rfFit
+```
+
+### Cross-Validation of Model
+The data was crossvalidated against both the testSet and the validationSet prepared earlier. Confusion matrices were produced, which suggested that the model worked robustly on these two additional datasets.
+
+#### Test Set
+```{r}
+pred <- predict(rfFit,newdata=testSet)
+confusionMatrix(pred,testSet$classe)
+```
+
+#### Validation Set
+```{r}
+pred <- predict(rfFit,newdata=validationSet)
+confusionMatrix(pred,validationSet$classe)
+```
+
+### Prediction of 20 cases
+Finally, it was time to try out the model on the 20 "left out" cases. The results were then uploaded to the Coursera website for autograding.
+
+#### Predict Results
+```{r}
+answers <- predict(rfFit,newdata=test)
+answers
+```
+#### Create Files to submit
+I used the function supplied in the instructions to create the submission files and save these in the Results folder. 
+```{r eval=FALSE}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("Results/problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(answers)
+```
+
+Results
+-------
+The random forests model produced an estimate of accuracy based on the trainSet data, with an accuracy estimate of 0.992 on the final model. The accuracy of the testSet data was 0.991, and on the validationSet was 0.994. The significance levels were extremely high.
+
+The confusion matrices demonstrated a high degree of accuracy in classification. The test set had  a reported accuracy : 0.991 with 95% CI of 0.988 to 0.994 The validation set had a reported accuracy of 0.992 with 95% CI of 0.989 to 0.995. These suggest that the model has an out of sample error of less than 1%.
+
+The answers files were submitted for autograding. All 20 predictions were correct.
+
+Conclusions
+-----------
+The data provided by 4 motion sensors for six subjects performing 10 arm curls in 6 ways can be accurately classified by using a random forest prediction algorithm. The accuracy of prediction is maintained with both a test set and a validation set. The model can also be used to classify accurately on new subjects.
+
+I was surprised (and gratified) by how accurately the final model worked. There were many false trails along the way. I felt that I learned a huge amount from this project about both the practical application of these techniques to a messy dataset, and also about managing a data analysis project.
+
+
+References
+----------
+
+1. http://stackoverflow.com/questions/7330915/removing-columns-with-missing-values
+2. Building Predictive Models in R Using the caret Package. Max Kuhn. Journal of Statistical Software
+November 2008, Volume 28, Issue 5
+3. http://en.wikipedia.org/wiki/Random_forest Random Forest article on Wikipedia
+4. http://caret.r-forge.r-project.org/modelList.html
