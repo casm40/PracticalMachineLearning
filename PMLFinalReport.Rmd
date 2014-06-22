@@ -143,7 +143,7 @@ Results
 -------
 The random forests model produced an estimate of accuracy based on the trainSet data, with an accuracy estimate of 0.992 on the final model. The accuracy of the testSet data was 0.991, and on the validationSet was 0.994. The significance levels were extremely high.
 
-The confusion matrices demonstrated a high degree of accuracy in classification. The test set had  a reported accuracy : 0.991 with 95% CI of 0.988 to 0.994 The validation set had a reported accuracy of 0.992 with 95% CI of 0.989 to 0.995. These suggest that the model has an out of sample error of less than 1%.
+The confusion matrices demonstrated a high degree of accuracy in classification. The test set had  a reported accuracy : 0.991 with 95% CI of 0.988 to 0.994 The validation set had a reported accuracy of 0.992 with 95% CI of 0.989 to 0.995. These suggest that the model has an out of sample error of around 1%.
 
 The answers files were submitted for autograding. All 20 predictions were correct.
 
